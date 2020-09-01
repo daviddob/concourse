@@ -510,7 +510,7 @@ all =
                     , defineHoverBehaviour <|
                         let
                             urlPath =
-                                "/teams/team/pipelines/pipeline/resources/resource?since=1&limit=1"
+                                "/teams/team/pipelines/pipeline/resources/resource?from=100&limit=1"
                         in
                         { name = "left pagination chevron with previous page"
                         , setup =
@@ -3543,12 +3543,12 @@ givenVersionsWithPagination =
                   , pagination =
                         { previousPage =
                             Just
-                                { direction = Since 1
+                                { direction = From 100
                                 , limit = 1
                                 }
                         , nextPage =
                             Just
-                                { direction = Since 100
+                                { direction = To 1
                                 , limit = 1
                                 }
                         }

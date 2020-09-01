@@ -22,7 +22,8 @@ import Concourse
 import Concourse.BuildStatus
 import Concourse.Pagination
     exposing
-        ( Page
+        ( Direction(..)
+        , Page
         , Paginated
         , chevronContainer
         , chevronLeft
@@ -102,9 +103,22 @@ type alias Flags =
     }
 
 
+pageLimit : Int
+pageLimit =
+    100
+
+
+startingPage : Page
+startingPage =
+    { direction = ToMostRecent, limit = pageLimit }
+
+
 init : Flags -> ( Model, List Effect )
 init flags =
     let
+        page =
+            flags.paging |> Maybe.withDefault startingPage
+
         model =
             { resourceIdentifier = flags.resourceId
             , pageStatus = Err Models.Empty
@@ -113,7 +127,7 @@ init flags =
             , checkSetupError = ""
             , lastChecked = Nothing
             , pinnedVersion = NotPinned
-            , currentPage = flags.paging
+            , currentPage = page
             , versions =
                 { content = []
                 , pagination = { previousPage = Nothing, nextPage = Nothing }
@@ -128,7 +142,7 @@ init flags =
     in
     ( model
     , [ FetchResource flags.resourceId
-      , FetchVersionedResources flags.resourceId flags.paging
+      , FetchVersionedResources flags.resourceId page
       , GetCurrentTimeZone
       , FetchAllPipelines
       , SyncTextareaHeight ResourceCommentTextarea
@@ -138,15 +152,19 @@ init flags =
 
 changeToResource : Flags -> ET Model
 changeToResource flags ( model, effects ) =
+    let
+        page =
+            flags.paging |> Maybe.withDefault startingPage
+    in
     ( { model
-        | currentPage = flags.paging
+        | currentPage = page
         , versions =
             { content = []
             , pagination = { previousPage = Nothing, nextPage = Nothing }
             }
       }
     , effects
-        ++ [ FetchVersionedResources model.resourceIdentifier flags.paging
+        ++ [ FetchVersionedResources model.resourceIdentifier page
            , SyncTextareaHeight ResourceCommentTextarea
            ]
     )
@@ -344,16 +362,11 @@ handleCallback callback session ( model, effects ) =
 
                 chosenModelWith =
                     \requestedPageUnwrapped ->
-                        case model.currentPage of
-                            Nothing ->
-                                newModel <| Just fetchedPage
+                        if Concourse.Pagination.equal page requestedPageUnwrapped then
+                            newModel <| requestedPage
 
-                            Just page ->
-                                if Concourse.Pagination.equal page requestedPageUnwrapped then
-                                    newModel <| requestedPage
-
-                                else
-                                    model
+                        else
+                            model
             in
             case requestedPage of
                 Nothing ->
@@ -789,12 +802,12 @@ permalink : List Concourse.VersionedResource -> Page
 permalink versionedResources =
     case List.head versionedResources of
         Nothing ->
-            { direction = Concourse.Pagination.Since 0
+            { direction = Concourse.Pagination.ToMostRecent
             , limit = 100
             }
 
         Just version ->
-            { direction = Concourse.Pagination.From version.id
+            { direction = Concourse.Pagination.To version.id
             , limit = List.length versionedResources
             }
 
